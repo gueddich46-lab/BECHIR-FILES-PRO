@@ -61,6 +61,8 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
     var operation by remember { mutableStateOf("") }
     var target by remember { mutableStateOf<DocumentFile?>(null) }
     var nameInput by remember { mutableStateOf("") }
+    var clipboard by remember { mutableStateOf<DocumentFile?>(null) }
+    var moving by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -110,7 +112,24 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             Spacer(Modifier.height(18.dp))
             OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Spacer(Modifier.height(12.dp))
-            if (current != null) TextButton(onClick = { operation = "create"; nameInput = "" }) { Text("＋ مجلد جديد") }
+            if (current != null) {
+                Row {
+                    TextButton(onClick = { operation = "create"; nameInput = "" }) { Text("＋ مجلد جديد") }
+                    if (clipboard != null) {
+                        TextButton(onClick = {
+                            val source = clipboard
+                            val destination = current
+                            val success = if (source != null && destination != null) {
+                                if (moving) FileOperations.moveFile(context, source, destination)
+                                else FileOperations.copyFile(context, source, destination)
+                            } else false
+                            if (success) { clipboard = null; error = ""; revision++ }
+                            else error = "تعذر اللصق: تحقق من صلاحيات الكتابة أو تكرار الاسم"
+                        }) { Text("لصق") }
+                        TextButton(onClick = { clipboard = null }) { Text("إلغاء") }
+                    }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { if (current?.uri != root?.uri) current = current?.parentFile }) {
                     Icon(Icons.Default.ArrowBack, "رجوع", tint = fg)
@@ -122,11 +141,19 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                 items(files, key = { it.uri.toString() }) { file ->
                     Card(onClick = { if (file.isDirectory) { current = file; query = "" } else openFile(file.uri) }, colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().height(120.dp).padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Column(Modifier.fillMaxWidth().height(146.dp).padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(if (file.isDirectory) Icons.Default.Folder else Icons.Default.InsertDriveFile, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(42.dp))
                             Spacer(Modifier.height(8.dp))
                             Text(file.name ?: "ملف", color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium)
                             Row {
+                                if (file.isFile) {
+                                    IconButton(onClick = { clipboard = file; moving = false; error = "افتح مجلد الوجهة واضغط لصق" }, modifier = Modifier.size(30.dp)) {
+                                        Icon(Icons.Default.ContentCopy, "نسخ", tint = fg, modifier = Modifier.size(18.dp))
+                                    }
+                                    IconButton(onClick = { clipboard = file; moving = true; error = "افتح مجلد الوجهة واضغط لصق" }, modifier = Modifier.size(30.dp)) {
+                                        Icon(Icons.Default.DriveFileMove, "نقل", tint = fg, modifier = Modifier.size(18.dp))
+                                    }
+                                }
                                 IconButton(onClick = { target = file; nameInput = file.name.orEmpty(); operation = "rename" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Edit, "إعادة تسمية", tint = fg, modifier = Modifier.size(18.dp)) }
                                 IconButton(onClick = { target = file; operation = "delete" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Delete, "حذف", tint = fg, modifier = Modifier.size(18.dp)) }
                             }
