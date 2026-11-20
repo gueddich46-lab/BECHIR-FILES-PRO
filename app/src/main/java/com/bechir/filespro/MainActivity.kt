@@ -1,0 +1,130 @@
+package com.bechir.filespro
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.documentfile.provider.DocumentFile
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            FilesApp(
+                persistFolder = { uri ->
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                },
+                openFile = { uri ->
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, contentResolver.getType(uri) ?: "*/*")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        })
+                    } catch (_: Exception) { }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
+    var dark by remember { mutableStateOf(true) }
+    val bg = if (dark) Color(0xFF10172B) else Color(0xFFF7F5FD)
+    val panel = if (dark) Color(0xFF202B47) else Color.White
+    val fg = if (dark) Color.White else Color(0xFF1E2340)
+    val accent = Color(0xFF9168F4)
+    var root by remember { mutableStateOf<DocumentFile?>(null) }
+    var current by remember { mutableStateOf<DocumentFile?>(null) }
+    var query by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                persistFolder(uri)
+                root = DocumentFile.fromTreeUri(context, uri)
+                current = root
+                query = ""
+                error = ""
+            } catch (e: Exception) {
+                error = "تعذر فتح المجلد: ${e.message}"
+            }
+        }
+    }
+    val files = remember(current, query) {
+        try {
+            current?.listFiles()
+                ?.filter { it.name.orEmpty().contains(query, ignoreCase = true) }
+                ?.sortedWith(compareByDescending<DocumentFile> { it.isDirectory }.thenBy { it.name?.lowercase() })
+                ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
+    MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = accent) else lightColorScheme(primary = Color(0xFF7545C9))) {
+        Column(Modifier.fillMaxSize().background(bg).systemBarsPadding().padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("BECHIR FILES PRO", color = fg, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("مدير الملفات الاحترافي", color = fg.copy(alpha = .6f))
+                }
+                IconButton(onClick = { dark = !dark }) {
+                    Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, "المظهر", tint = fg)
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(22.dp)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                    Text("ملفاتك، تحت سيطرتك", color = fg, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("اختر مجلدًا لعرض محتوياته بأمان", color = fg.copy(alpha = .65f))
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { picker.launch(null) }, colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                        Icon(Icons.Default.FolderOpen, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("اختيار مجلد")
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { if (current?.uri != root?.uri) current = current?.parentFile }) {
+                    Icon(Icons.Default.ArrowBack, "رجوع", tint = fg)
+                }
+                Text(current?.name ?: "لم يتم اختيار مجلد", color = fg, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${files.size} عنصر", color = fg.copy(alpha = .6f))
+            }
+            if (error.isNotBlank()) Text(error, color = Color(0xFFFF8E8E))
+            LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                items(files, key = { it.uri.toString() }) { file ->
+                    Card(onClick = { if (file.isDirectory) { current = file; query = "" } else openFile(file.uri) }, colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(18.dp)) {
+                        Column(Modifier.fillMaxWidth().height(120.dp).padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Icon(if (file.isDirectory) Icons.Default.Folder else Icons.Default.InsertDriveFile, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(42.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text(file.name ?: "ملف", color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
