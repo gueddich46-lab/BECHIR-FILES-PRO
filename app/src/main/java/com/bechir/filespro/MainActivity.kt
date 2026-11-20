@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             FilesApp(
                 persistFolder = { uri ->
-                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                 },
                 openFile = { uri ->
                     try {
@@ -57,6 +57,10 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
     var current by remember { mutableStateOf<DocumentFile?>(null) }
     var query by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var revision by remember { mutableIntStateOf(0) }
+    var operation by remember { mutableStateOf("") }
+    var target by remember { mutableStateOf<DocumentFile?>(null) }
+    var nameInput by remember { mutableStateOf("") }
     val context = androidx.compose.ui.platform.LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -71,7 +75,7 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             }
         }
     }
-    val files = remember(current, query) {
+    val files = remember(current, query, revision) {
         try {
             current?.listFiles()
                 ?.filter { it.name.orEmpty().contains(query, ignoreCase = true) }
@@ -106,6 +110,7 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             Spacer(Modifier.height(18.dp))
             OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Spacer(Modifier.height(12.dp))
+            if (current != null) TextButton(onClick = { operation = "create"; nameInput = "" }) { Text("＋ مجلد جديد") }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { if (current?.uri != root?.uri) current = current?.parentFile }) {
                     Icon(Icons.Default.ArrowBack, "رجوع", tint = fg)
@@ -121,10 +126,37 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
                             Icon(if (file.isDirectory) Icons.Default.Folder else Icons.Default.InsertDriveFile, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(42.dp))
                             Spacer(Modifier.height(8.dp))
                             Text(file.name ?: "ملف", color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium)
+                            Row {
+                                IconButton(onClick = { target = file; nameInput = file.name.orEmpty(); operation = "rename" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Edit, "إعادة تسمية", tint = fg, modifier = Modifier.size(18.dp)) }
+                                IconButton(onClick = { target = file; operation = "delete" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Delete, "حذف", tint = fg, modifier = Modifier.size(18.dp)) }
+                            }
                         }
                     }
                 }
             }
+        }
+        if (operation.isNotEmpty()) {
+            AlertDialog(
+                onDismissRequest = { operation = "" },
+                title = { Text(when (operation) { "create" -> "إنشاء مجلد"; "rename" -> "إعادة تسمية"; else -> "تأكيد الحذف النهائي" }) },
+                text = {
+                    if (operation == "delete") Text("هل تريد حذف هذا العنصر نهائيًا؟ لا توجد سلة محذوفات.")
+                    else OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, label = { Text("الاسم") }, singleLine = true)
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val success = when (operation) {
+                            "create" -> current?.let { FileOperations.createFolder(it, nameInput) } == true
+                            "rename" -> target?.let { FileOperations.rename(it, nameInput) } == true
+                            "delete" -> target?.let { FileOperations.deleteConfirmed(it) } == true
+                            else -> false
+                        }
+                        if (success) { operation = ""; target = null; error = ""; revision++ }
+                        else error = "تعذرت العملية. تحقق من صلاحيات المجلد والاسم."
+                    }) { Text(if (operation == "delete") "حذف نهائيًا" else "حفظ") }
+                },
+                dismissButton = { TextButton(onClick = { operation = ""; target = null }) { Text("إلغاء") } }
+            )
         }
     }
 }
