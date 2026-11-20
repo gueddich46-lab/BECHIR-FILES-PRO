@@ -89,18 +89,18 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
         Column(Modifier.fillMaxSize().background(bg).systemBarsPadding().padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("BECHIR FILES PRO", color = fg, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("مدير الملفات الاحترافي", color = fg.copy(alpha = .6f))
+                    Text("ملفاتي | بشير", color = fg, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                    Text("BECHIR FILES PRO  •  مدير الملفات", color = fg.copy(alpha = .65f), style = MaterialTheme.typography.labelMedium)
                 }
                 IconButton(onClick = { dark = !dark }) {
                     Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, "المظهر", tint = fg)
                 }
             }
-            Spacer(Modifier.height(22.dp))
-            Card(colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(22.dp)) {
+            Spacer(Modifier.height(14.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = if (dark) Color(0xFF39245D) else Color(0xFFE9DDFC)), shape = RoundedCornerShape(26.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                    Text("ملفاتك، تحت سيطرتك", color = fg, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("اختر مجلدًا لعرض محتوياته بأمان", color = fg.copy(alpha = .65f))
+                    Text("مساحة ملفاتك الخاصة", color = fg, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("تصفّح • نظّم • انسخ • انقل", color = fg.copy(alpha = .75f))
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { picker.launch(null) }, colors = ButtonDefaults.buttonColors(containerColor = accent)) {
                         Icon(Icons.Default.FolderOpen, null)
@@ -109,7 +109,7 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
                     }
                 }
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
             OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Spacer(Modifier.height(12.dp))
             if (current != null) {
@@ -140,9 +140,9 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             if (error.isNotBlank()) Text(error, color = Color(0xFFFF8E8E))
             LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                 items(files, key = { it.uri.toString() }) { file ->
-                    Card(onClick = { if (file.isDirectory) { current = file; query = "" } else openFile(file.uri) }, colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(18.dp)) {
+                    Card(onClick = { if (file.isDirectory) { current = file; query = "" } else openFile(file.uri) }, colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(22.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
                         Column(Modifier.fillMaxWidth().height(158.dp).padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(when { file.isDirectory -> Icons.Default.Folder; file.type?.startsWith("image/") == true -> Icons.Default.Image; file.type?.startsWith("video/") == true -> Icons.Default.Movie; file.type?.startsWith("audio/") == true -> Icons.Default.MusicNote; file.type == "application/pdf" -> Icons.Default.PictureAsPdf; else -> Icons.Default.Description }, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(40.dp))
+                            Icon(when { file.isDirectory -> Icons.Default.Folder; file.type?.startsWith("image/") == true -> Icons.Default.Image; file.type?.startsWith("video/") == true -> Icons.Default.Movie; file.type?.startsWith("audio/") == true -> Icons.Default.MusicNote; file.type == "application/pdf" -> Icons.Default.PictureAsPdf; else -> Icons.Default.Description }, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(46.dp))
                             Spacer(Modifier.height(8.dp))
                             Text(file.name ?: "ملف", color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium)
                             Row {
