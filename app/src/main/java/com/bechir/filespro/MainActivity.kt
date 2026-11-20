@@ -3,6 +3,7 @@ package com.bechir.filespro
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,6 +34,8 @@ class MainActivity : ComponentActivity() {
                 persistFolder = { uri ->
                     contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                 },
+                initialFolder = getSharedPreferences("bechir_files", Context.MODE_PRIVATE).getString("last_folder", null),
+                saveFolder = { uri -> getSharedPreferences("bechir_files", Context.MODE_PRIVATE).edit().putString("last_folder", uri.toString()).apply() },
                 openFile = { uri ->
                     try {
                         startActivity(Intent(Intent.ACTION_VIEW).apply {
@@ -47,7 +50,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
+fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
     var dark by remember { mutableStateOf(true) }
     val bg = if (dark) Color(0xFF10172B) else Color(0xFFF7F5FD)
     val panel = if (dark) Color(0xFF202B47) else Color.White
@@ -64,10 +67,19 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
     var clipboard by remember { mutableStateOf<DocumentFile?>(null) }
     var moving by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(initialFolder) {
+        if (!initialFolder.isNullOrBlank()) {
+            try {
+                val restored = DocumentFile.fromTreeUri(context, Uri.parse(initialFolder))
+                if (restored != null && restored.canRead()) { root = restored; current = restored; revision++ }
+            } catch (_: Exception) { }
+        }
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             try {
                 persistFolder(uri)
+                saveFolder(uri)
                 root = DocumentFile.fromTreeUri(context, uri)
                 current = root
                 query = ""
