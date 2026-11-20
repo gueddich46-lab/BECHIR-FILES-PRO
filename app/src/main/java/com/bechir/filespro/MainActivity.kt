@@ -141,8 +141,8 @@ fun FilesApp(persistFolder: (Uri) -> Unit, openFile: (Uri) -> Unit) {
             LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                 items(files, key = { it.uri.toString() }) { file ->
                     Card(onClick = { if (file.isDirectory) { current = file; query = "" } else openFile(file.uri) }, colors = CardDefaults.cardColors(containerColor = panel), shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().height(146.dp).padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(if (file.isDirectory) Icons.Default.Folder else Icons.Default.InsertDriveFile, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(42.dp))
+                        Column(Modifier.fillMaxWidth().height(158.dp).padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Icon(when { file.isDirectory -> Icons.Default.Folder; file.type?.startsWith("image/") == true -> Icons.Default.Image; file.type?.startsWith("video/") == true -> Icons.Default.Movie; file.type?.startsWith("audio/") == true -> Icons.Default.MusicNote; file.type == "application/pdf" -> Icons.Default.PictureAsPdf; else -> Icons.Default.Description }, null, tint = if (file.isDirectory) Color(0xFFF2B84D) else accent, modifier = Modifier.size(40.dp))
                             Spacer(Modifier.height(8.dp))
                             Text(file.name ?: "ملف", color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium)
                             Row {
