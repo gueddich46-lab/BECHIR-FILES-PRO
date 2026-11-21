@@ -28,7 +28,7 @@ jobs:
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
-          source = Path("file_000000000f60820a982e42bb48348703.png")
+          source = Path("file_000000003554820ab757e032e8a8ecdd.png")
           if not source.is_file():
               raise SystemExit("Approved icon PNG is missing")
           original = Image.open(source).convert("RGBA")
