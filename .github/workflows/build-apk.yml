@@ -22,6 +22,11 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install approved launcher artwork
+        run: |
+          test -s "file_000000000f60820a982e42bb48348703.png"
+          mkdir -p app/src/main/res/drawable-nodpi
+          cp "file_000000000f60820a982e42bb48348703.png" app/src/main/res/drawable-nodpi/bechir_launcher.png
       - name: Build APK
         run: gradle assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
