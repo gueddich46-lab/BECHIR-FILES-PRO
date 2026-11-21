@@ -110,11 +110,11 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
             }
             Spacer(Modifier.height(14.dp))
             Card(colors = CardDefaults.cardColors(containerColor = if (dark) Color(0xFF39245D) else Color(0xFFE9DDFC)), shape = RoundedCornerShape(26.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Text("مساحة ملفاتك الخاصة", color = fg, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("تصفّح • نظّم • انسخ • انقل", color = fg.copy(alpha = .75f))
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = { picker.launch(null) }, colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { picker.launch(null) }, colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                         Icon(Icons.Default.FolderOpen, null)
                         Spacer(Modifier.width(8.dp))
                         Text("اختيار مجلد")
@@ -122,7 +122,7 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
                 }
             }
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
+            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(20.dp), label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Spacer(Modifier.height(12.dp))
             if (current != null) {
                 Row {
