@@ -4,6 +4,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.content.Context
+import android.os.Environment
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.text.DateFormat
 import java.util.Date
 import androidx.activity.ComponentActivity
@@ -72,6 +77,23 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
     var sortMenu by remember { mutableStateOf(false) }
     var detailsTarget by remember { mutableStateOf<DocumentFile?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var fullAccess by remember { mutableStateOf(Environment.isExternalStorageManager()) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) fullAccess = Environment.isExternalStorageManager()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(fullAccess) {
+        if (fullAccess && root == null) {
+            val storage = DocumentFile.fromFile(Environment.getExternalStorageDirectory())
+            root = storage
+            current = storage
+            revision++
+        }
+    }
     LaunchedEffect(initialFolder) {
         if (!initialFolder.isNullOrBlank()) {
             try {
@@ -127,6 +149,35 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
                 }
             }
             Spacer(Modifier.height(12.dp))
+            if (fullAccess) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("التخزين" to "", "التنزيلات" to "Download", "الصور" to "Pictures").forEach { (title, folder) ->
+                        OutlinedButton(onClick = {
+                            val base = Environment.getExternalStorageDirectory()
+                            val destination = if (folder.isEmpty()) base else java.io.File(base, folder)
+                            if (destination.isDirectory) {
+                                root = DocumentFile.fromFile(base)
+                                current = DocumentFile.fromFile(destination)
+                                query = ""
+                                revision++
+                            } else error = "المجلد غير موجود"
+                        }, contentPadding = PaddingValues(horizontal = 9.dp, vertical = 2.dp)) { Text(title, style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+            } else {
+                TextButton(onClick = {
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                            Uri.parse("package:" + context.packageName)))
+                    } catch (_: Exception) {
+                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                    }
+                }) {
+                    Icon(Icons.Default.PhoneAndroid, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("السماح بعرض ملفات الهاتف تلقائيًا")
+                }
+            }
             OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(20.dp), label = { Text("ابحث داخل المجلد") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Spacer(Modifier.height(12.dp))
             if (current != null) {
