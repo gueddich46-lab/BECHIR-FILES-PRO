@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.content.Context
+import java.text.DateFormat
+import java.util.Date
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,6 +68,9 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
     var nameInput by remember { mutableStateOf("") }
     var clipboard by remember { mutableStateOf<DocumentFile?>(null) }
     var moving by remember { mutableStateOf(false) }
+    var sortMode by remember { mutableStateOf("name") }
+    var sortMenu by remember { mutableStateOf(false) }
+    var detailsTarget by remember { mutableStateOf<DocumentFile?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(initialFolder) {
         if (!initialFolder.isNullOrBlank()) {
@@ -89,11 +94,11 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
             }
         }
     }
-    val files = remember(current, query, revision) {
+    val files = remember(current, query, revision, sortMode) {
         try {
             current?.listFiles()
                 ?.filter { it.name.orEmpty().contains(query, ignoreCase = true) }
-                ?.sortedWith(compareByDescending<DocumentFile> { it.isDirectory }.thenBy { it.name?.lowercase() })
+                ?.sortedWith(compareByDescending<DocumentFile> { it.isDirectory }.thenComparator { a, b -> when (sortMode) { "size" -> b.length().compareTo(a.length()); "date" -> b.lastModified().compareTo(a.lastModified()); else -> (a.name ?: "").compareTo(b.name ?: "", ignoreCase = true) } })
                 ?: emptyList()
         } catch (_: Exception) { emptyList() }
     }
@@ -149,6 +154,20 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
                 Text(current?.name ?: "لم يتم اختيار مجلد", color = fg, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${files.size} عنصر", color = fg.copy(alpha = .6f))
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("ترتيب حسب:", color = fg.copy(alpha = .7f), style = MaterialTheme.typography.labelMedium)
+                Box {
+                    TextButton(onClick = { sortMenu = true }) {
+                        Text(when (sortMode) { "size" -> "الحجم"; "date" -> "التاريخ"; else -> "الاسم" })
+                        Icon(Icons.Default.ArrowDropDown, null)
+                    }
+                    DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                        listOf("name" to "الاسم", "size" to "الحجم", "date" to "التاريخ").forEach { (mode, title) ->
+                            DropdownMenuItem(text = { Text(title) }, onClick = { sortMode = mode; sortMenu = false })
+                        }
+                    }
+                }
+            }
             if (error.isNotBlank()) Text(error, color = Color(0xFFFF8E8E))
             LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                 items(files, key = { it.uri.toString() }) { file ->
@@ -166,6 +185,9 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
                                         Icon(Icons.Default.DriveFileMove, "نقل", tint = fg, modifier = Modifier.size(18.dp))
                                     }
                                 }
+                                IconButton(onClick = { detailsTarget = file }, modifier = Modifier.size(30.dp)) {
+                                    Icon(Icons.Default.Info, "تفاصيل", tint = fg, modifier = Modifier.size(18.dp))
+                                }
                                 IconButton(onClick = { target = file; nameInput = file.name.orEmpty(); operation = "rename" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Edit, "إعادة تسمية", tint = fg, modifier = Modifier.size(18.dp)) }
                                 IconButton(onClick = { target = file; operation = "delete" }, modifier = Modifier.size(30.dp)) { Icon(Icons.Default.Delete, "حذف", tint = fg, modifier = Modifier.size(18.dp)) }
                             }
@@ -173,6 +195,29 @@ fun FilesApp(persistFolder: (Uri) -> Unit, initialFolder: String?, saveFolder: (
                     }
                 }
             }
+        }
+        if (detailsTarget != null) {
+            val item = detailsTarget!!
+            val bytes = item.length()
+            val readableSize = when {
+                item.isDirectory -> "مجلد"
+                bytes >= 1048576L -> String.format(java.util.Locale.US, "%.2f MB", bytes / 1048576.0)
+                bytes >= 1024L -> String.format(java.util.Locale.US, "%.1f KB", bytes / 1024.0)
+                else -> "$bytes بايت"
+            }
+            AlertDialog(
+                onDismissRequest = { detailsTarget = null },
+                title = { Text("تفاصيل الملف") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("الاسم: ${item.name ?: "غير معروف"}")
+                        Text("النوع: ${if (item.isDirectory) "مجلد" else item.type ?: "غير معروف"}")
+                        Text("الحجم: $readableSize")
+                        Text("آخر تعديل: ${if (item.lastModified() > 0) DateFormat.getDateTimeInstance().format(Date(item.lastModified())) else "غير متاح"}")
+                    }
+                },
+                confirmButton = { TextButton(onClick = { detailsTarget = null }) { Text("إغلاق") } }
+            )
         }
         if (operation.isNotEmpty()) {
             AlertDialog(
